@@ -33,7 +33,7 @@ class _FastHubAIChatState extends State<FastHubAIChat> {
   final Map<String, String> _generatedPdfUrls = {};
 
   static const Color zinc = Color(0xFFA1A1AA);
-  static const String _apiKey = 'AIzaSyDFsaAlQs5ErTSwSGkN4Xt3DzeRqKyOZNY';
+  static const String _apiKey = String.fromEnvironment('GEMINI_API_KEY');
 
   @override
   void initState() {
@@ -86,7 +86,7 @@ class _FastHubAIChatState extends State<FastHubAIChat> {
     );
 
     try {
-      const String latexliteApiKey = 'latexlite-key-f34085582d2803e2';
+      const String latexliteApiKey = String.fromEnvironment('LATEXLITE_API_KEY');
       final url = Uri.parse('https://latexlite.com/v1/renders-sync');
 
       final response = await http.post(

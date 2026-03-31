@@ -509,9 +509,9 @@ class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderSt
       return;
     }
 
-    const String latexliteApiKey = 'latexlite-key-f34085582d2803e2';
-    if (latexliteApiKey == 'latexlite-key-f34085582d2803e2>') {
-      _showSnackBar('Veuillez configurer votre clé API LaTeXLite', isError: true);
+    const String latexliteApiKey = String.fromEnvironment('LATEXLITE_API_KEY');
+    if (latexliteApiKey.isEmpty) {
+      _showSnackBar('Veuillez configurer votre clé API LaTeXLite via --dart-define', isError: true);
       setState(() { _isLoading = false; });
       return;
     }

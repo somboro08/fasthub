@@ -82,7 +82,7 @@ class FastHubApp extends StatelessWidget {
         BlocProvider(create: (_) => SocialCubit(this.socialService)),
         BlocProvider(create: (_) => AIChatCubit(
           aiService: this.aiService,
-          apiKey: 'AIzaSyDFsaAlQs5ErTSwSGkN4Xt3DzeRqKyOZNY',
+          apiKey: const String.fromEnvironment('GEMINI_API_KEY'),
         )),
       ],
       child: MaterialApp(
