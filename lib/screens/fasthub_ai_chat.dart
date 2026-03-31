@@ -121,7 +121,7 @@ class _FastHubAIChatState extends State<FastHubAIChat> {
           _showSuccessDialog(publicUrl);
         }
       } else {
-        throw Exception("Erreur LaTeXLite: ${response.statusCode}");
+        throw Exception("Erreur LaTeXLite: ${response.status}");
       }
     } catch (e) {
       if (mounted) {
