@@ -4,6 +4,25 @@ import '../models/ai_chat_model.dart';
 class AIService {
   final _supabase = Supabase.instance.client;
 
+  Future<String> callGeminiProxy(String prompt) async {
+    try {
+      final response = await _supabase.functions.invoke(
+        'gemini-proxy',
+        body: {'prompt': prompt},
+      );
+      
+      if (response.status != 200) {
+        throw Exception("Erreur Edge Function: ${response.status}");
+      }
+
+      // Structure typique de réponse Gemini (à adapter selon votre proxy)
+      final data = response.data;
+      return data['candidates'][0]['content']['parts'][0]['text'];
+    } catch (e) {
+      throw Exception("Erreur lors de l'appel à l'IA via le proxy: $e");
+    }
+  }
+
   Future<List<AIChatSession>> getSessions(String userId) async {
     final response = await _supabase
         .from('ai_sessions')

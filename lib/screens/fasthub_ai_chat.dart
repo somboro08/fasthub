@@ -86,27 +86,25 @@ class _FastHubAIChatState extends State<FastHubAIChat> {
     );
 
     try {
-      const String latexliteApiKey = String.fromEnvironment('LATEXLITE_API_KEY');
-      final url = Uri.parse('https://latexlite.com/v1/renders-sync');
-
-      final response = await http.post(
-        url,
-        headers: {
-          'Authorization': 'Bearer $latexliteApiKey',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'template': latexCode}),
+      final response = await Supabase.instance.client.functions.invoke(
+        'latexlite-proxy',
+        body: {'latexContent': latexCode},
       );
 
-      if (response.statusCode == 200) {
+      if (response.status == 200) {
         final authState = context.read<AuthCubit>().state as Authenticated;
         final docId = const Uuid().v4();
         final fileName = 'ai_gen_$docId.pdf';
         final supabasePath = '${authState.user.id}/$fileName';
 
+        // Assuming proxy returns bytes in response.data or similar
+        // If it returns a URL directly, use that.
+        // But if it returns bytes:
+        final Uint8List pdfBytes = base64Decode(response.data['pdfBase64']);
+
         await Supabase.instance.client.storage
             .from('document-pdfs')
-            .uploadBinary(supabasePath, response.bodyBytes,
+            .uploadBinary(supabasePath, pdfBytes,
                 fileOptions: const FileOptions(cacheControl: '3600', upsert: true));
 
         final publicUrl = Supabase.instance.client.storage

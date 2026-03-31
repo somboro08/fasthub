@@ -1,6 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
 import '../models/ai_chat_model.dart';
 import '../services/ai_service.dart';
 import '../models/profile_model.dart';
@@ -55,27 +54,13 @@ class AIChatError extends AIChatState {
 
 class AIChatCubit extends Cubit<AIChatState> {
   final AIService _aiService;
-  final GenerativeModel _model;
   final Profile? profile;
 
   AIChatCubit({
     required AIService aiService,
-    required String apiKey,
+    String? apiKey,
     this.profile,
   })  : _aiService = aiService,
-        _model = GenerativeModel(
-          model: 'gemini-2.5-flash',
-          apiKey: apiKey,
-          systemInstruction: Content.system(
-            "Tu es FastHub AI, l'assistant intelligent de la plateforme FastHub pour les étudiants de la FAST (Faculté des Sciences et Techniques). "
-            "Ton but est d'aider les étudiants dans leurs cours, exercices de maths, physique, et de les guider sur la plateforme. "
-            "Tu dois appeler l'utilisateur 'Camarade ${profile?.firstName ?? 'Étudiant'}'. "
-            "Pour les problèmes de mathématiques ou de physique, fournis des solutions détaillées : concepts clés, résolution étape par étape, et propriétés utilisées. "
-            "Utilise TOUJOURS le format LaTeX pour les formules mathématiques (entourées de \$ pour inline ou \$\$ pour display). "
-            "Si l'utilisateur demande de générer un PDF de la discussion, réponds en incluant un bloc de code LaTeX complet et valide contenant le résumé ou le contenu demandé. "
-            "Le bloc LaTeX doit commencer par \\documentclass{article} et se terminer par \\end{document}."
-          ),
-        ),
         super(AIChatInitial());
 
   Future<void> loadSessions(String userId) async {
@@ -135,35 +120,35 @@ class AIChatCubit extends Cubit<AIChatState> {
     if (currentState is! AIChatSessionsLoaded || currentState.currentSession == null) return;
 
     final session = currentState.currentSession!;
-    final userMessage = await _aiService.saveMessage(
-      sessionId: session.id,
-      role: 'user',
-      content: text,
-    );
-
-    emit(currentState.copyWith(
-      messages: [...currentState.messages, userMessage],
-      isSending: true,
-    ));
-
+    
     try {
-      final history = currentState.messages.map((m) {
-        return m.role == 'user' 
-          ? Content.text(m.content) 
-          : Content.model([TextPart(m.content)]);
-      }).toList();
-      
-      // Add the new user message to history for the chat session
-      history.add(Content.text(text));
+      final userMessage = await _aiService.saveMessage(
+        sessionId: session.id,
+        role: 'user',
+        content: text,
+      );
 
-      final chat = _model.startChat(history: history.take(history.length - 1).toList());
-      final response = await chat.sendMessage(Content.text(text));
-      final modelText = response.text ?? "Désolé, je n'ai pas pu générer de réponse.";
+      emit(currentState.copyWith(
+        messages: [...currentState.messages, userMessage],
+        isSending: true,
+      ));
+
+      // Build context for AI
+      String contextText = "Tu es FastHub AI, l'assistant intelligent de la plateforme FastHub pour les étudiants de la FAST (Faculté des Sciences et Techniques). ";
+      if (profile != null) {
+        contextText += "Tu t'adresses à un(e) étudiant(e) nommé(e) ${profile!.firstName} ${profile!.lastName} en filière ${profile!.filiere} (niveau ${profile!.level}). ";
+      }
+      contextText += "Réponds de manière concise, précise et utilise le format LaTeX pour les formules mathématiques et scientifiques (entoure-les de \$ pour inline et \$\$ pour display). ";
+      contextText += "Si l'utilisateur demande de générer un PDF, inclus un bloc de code LaTeX complet (\\documentclass...\\end{document}).";
+      
+      final prompt = "$contextText\n\nQuestion de l'étudiant: $text";
+      
+      final responseText = await _aiService.callGeminiProxy(prompt);
 
       final modelMessage = await _aiService.saveMessage(
         sessionId: session.id,
         role: 'model',
-        content: modelText,
+        content: responseText,
       );
 
       emit(currentState.copyWith(

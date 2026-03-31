@@ -509,30 +509,19 @@ class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderSt
       return;
     }
 
-    const String latexliteApiKey = String.fromEnvironment('LATEXLITE_API_KEY');
-    if (latexliteApiKey.isEmpty) {
-      _showSnackBar('Veuillez configurer votre clé API LaTeXLite via --dart-define', isError: true);
-      setState(() { _isLoading = false; });
-      return;
-    }
-
-    final url = Uri.parse('https://latexlite.com/v1/renders-sync');
-
     try {
-      final response = await http.post(
-        url,
-        headers: {
-          'Authorization': 'Bearer $latexliteApiKey',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'template': latexContent}),
+      final response = await Supabase.instance.client.functions.invoke(
+        'latexlite-proxy',
+        body: {'latexContent': latexContent},
       );
 
-      if (response.statusCode == 200) {
+      if (response.status == 200) {
         final directory = await getTemporaryDirectory();
         final filePath = '${directory.path}/output_${DateTime.now().millisecondsSinceEpoch}.pdf';
         final file = File(filePath);
-        await file.writeAsBytes(response.bodyBytes);
+        
+        final Uint8List pdfBytes = base64Decode(response.data['pdfBase64']);
+        await file.writeAsBytes(pdfBytes);
 
         setState(() {
           _compiledPdfUrl = filePath;
@@ -548,10 +537,7 @@ class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderSt
         _tabController.animateTo(2);
         _showSnackBar('Compilation LaTeX réussie !');
       } else {
-        final errorMessage = response.body.isNotEmpty
-            ? 'LaTeXLite Erreur (${response.statusCode}): ${utf8.decode(response.bodyBytes)}'
-            : 'LaTeXLite Erreur (code: ${response.statusCode})';
-        _showSnackBar(errorMessage, isError: true);
+        _showSnackBar('Erreur LaTeXLite (Status: ${response.status})', isError: true);
         setState(() { _compiledPdfUrl = null; });
       }
     } catch (e) {
